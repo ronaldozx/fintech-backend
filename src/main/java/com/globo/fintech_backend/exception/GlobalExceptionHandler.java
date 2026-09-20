@@ -1,6 +1,8 @@
 package com.globo.fintech_backend.exception;
 
 import com.globo.fintech_backend.Auth.exception.InvalidCredentialsException;
+import com.globo.fintech_backend.OpenFinance.exception.OpenFinanceException;
+import com.globo.fintech_backend.OpenFinance.exception.OpenFinanceUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<String> handleNotFound(ResourceNotFoundException ex) {
         return ResponseEntity.status(404).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(OpenFinanceUnavailableException.class)
+    public ResponseEntity<String> handleOpenFinanceUnavailable(OpenFinanceUnavailableException ex) {
+        return ResponseEntity.status(503).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(OpenFinanceException.class)
+    public ResponseEntity<String> handleOpenFinance(OpenFinanceException ex) {
+        log.error("Open Finance provider error", ex);
+        return ResponseEntity.status(502).body(ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

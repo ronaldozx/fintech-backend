@@ -9,3 +9,7 @@ spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.SQLServerDialect
 
 
 jwt.secret=CHANGE_ME
+
+
+pluggy.client-id=
+pluggy.client-secret=
