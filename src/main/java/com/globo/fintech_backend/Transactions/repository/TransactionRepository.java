@@ -11,7 +11,9 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
@@ -25,4 +27,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
-    );}
+    );
+
+    @Query("SELECT t.externalId FROM Transaction t WHERE t.user.id = :userId AND t.externalId IN :externalIds")
+    Set<String> findExistingExternalIds(
+            @Param("userId") Long userId,
+            @Param("externalIds") Collection<String> externalIds
+    );
+}
