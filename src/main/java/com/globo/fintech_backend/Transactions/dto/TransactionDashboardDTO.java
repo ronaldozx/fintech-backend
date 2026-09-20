@@ -14,7 +14,7 @@ public class TransactionDashboardDTO {
 
     public TransactionDashboardDTO(TransactionSummary summary, Page<TransactionDTO> transactions) {
         this.totalIncome = summary.getTotalIncome() != null ? summary.getTotalIncome() : BigDecimal.ZERO;
-        this.totalExpense = summary.getTotalExpense() != null ? summary.getTotalExpense() : BigDecimal.ZERO;
+        this.totalExpense = summary.getTotalExpense() != null ? summary.getTotalExpense().abs() : BigDecimal.ZERO;
 
         this.netBalance = this.totalIncome.subtract(this.totalExpense);
 

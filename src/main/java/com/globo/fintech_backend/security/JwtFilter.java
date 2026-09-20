@@ -3,7 +3,8 @@ package com.globo.fintech_backend.security;
 import com.globo.fintech_backend.Auth.service.JwtService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.*;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -31,10 +32,13 @@ public class JwtFilter extends OncePerRequestFilter {
             String token = authHeader.substring(7);
 
             if (jwtService.isTokenValid(token)) {
-                String email = jwtService.getSubject(token);
+                AuthenticatedUser principal = new AuthenticatedUser(
+                        jwtService.getUserId(token),
+                        jwtService.getSubject(token)
+                );
 
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(email, null, Collections.emptyList());
+                        new UsernamePasswordAuthenticationToken(principal, null, Collections.emptyList());
 
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
