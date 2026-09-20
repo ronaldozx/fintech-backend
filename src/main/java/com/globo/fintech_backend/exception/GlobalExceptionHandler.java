@@ -30,6 +30,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(404).body(ex.getMessage());
     }
 
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<String> handleConflict(ConflictException ex) {
+        return ResponseEntity.status(409).body(ex.getMessage());
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<String> handleBadRequest(BadRequestException ex) {
+        return ResponseEntity.status(400).body(ex.getMessage());
+    }
+
     @ExceptionHandler(OpenFinanceUnavailableException.class)
     public ResponseEntity<String> handleOpenFinanceUnavailable(OpenFinanceUnavailableException ex) {
         return ResponseEntity.status(503).body(ex.getMessage());

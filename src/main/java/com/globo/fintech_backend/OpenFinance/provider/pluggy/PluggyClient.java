@@ -5,6 +5,7 @@ import com.globo.fintech_backend.OpenFinance.exception.OpenFinanceUnavailableExc
 import com.globo.fintech_backend.OpenFinance.provider.OpenFinanceProvider;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderAccount;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderAccountType;
+import com.globo.fintech_backend.OpenFinance.provider.ProviderItem;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransaction;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransactionType;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Account;
@@ -13,6 +14,7 @@ import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Aut
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenOptions;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenRequest;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenResponse;
+import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Item;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Page;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Transaction;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +76,30 @@ public class PluggyClient implements OpenFinanceProvider {
             throw new OpenFinanceException("Resposta inválida do provedor ao criar o token de conexão");
         }
         return response.accessToken();
+    }
+
+    @Override
+    public ProviderItem getItem(String itemId) {
+        Item item = call("get item", () -> restClient.get()
+                .uri("/items/{itemId}", itemId)
+                .header(API_KEY_HEADER, getApiKey())
+                .retrieve()
+                .body(Item.class));
+
+        if (item == null || item.id() == null) {
+            throw new OpenFinanceException("Resposta inválida do provedor ao consultar a conexão");
+        }
+        String institutionName = item.connector() == null ? null : item.connector().name();
+        return new ProviderItem(item.id(), item.status(), institutionName, item.clientUserId());
+    }
+
+    @Override
+    public void deleteItem(String itemId) {
+        call("delete item", () -> restClient.delete()
+                .uri("/items/{itemId}", itemId)
+                .header(API_KEY_HEADER, getApiKey())
+                .retrieve()
+                .toBodilessEntity());
     }
 
     @Override
