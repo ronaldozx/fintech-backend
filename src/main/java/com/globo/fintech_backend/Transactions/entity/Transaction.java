@@ -30,6 +30,8 @@ public class Transaction {
     private TransactionType type;
     private String category;
 
+    private String externalId;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -95,6 +97,14 @@ public class Transaction {
 
     public void setCategory(String category) {
         this.category = category;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
     }
 
     public LocalDateTime getCreatedAt() {

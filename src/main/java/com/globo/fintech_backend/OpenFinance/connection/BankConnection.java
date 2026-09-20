@@ -36,6 +36,8 @@ public class BankConnection {
 
     private String status;
 
+    private LocalDateTime lastSyncedAt;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }
