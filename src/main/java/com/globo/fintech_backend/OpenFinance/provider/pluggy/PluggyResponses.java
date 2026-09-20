@@ -22,6 +22,12 @@ final class PluggyResponses {
     record ConnectTokenResponse(String accessToken) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    record Connector(String name) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Item(String id, String status, String clientUserId, Connector connector) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record Page<T>(int page, int totalPages, List<T> results) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

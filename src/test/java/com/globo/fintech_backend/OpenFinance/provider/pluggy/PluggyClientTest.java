@@ -4,6 +4,7 @@ import com.globo.fintech_backend.OpenFinance.exception.OpenFinanceException;
 import com.globo.fintech_backend.OpenFinance.exception.OpenFinanceUnavailableException;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderAccount;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderAccountType;
+import com.globo.fintech_backend.OpenFinance.provider.ProviderItem;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransaction;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransactionType;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 
@@ -166,6 +168,39 @@ class PluggyClientTest {
         assertEquals(ProviderTransactionType.CREDIT, second.type());
         assertEquals(null, second.category());
         assertFalse(second.posted());
+        server.verify();
+    }
+
+    @Test
+    void getsItemWithInstitutionNameAndClientUserId() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(BASE_URL + "/items/item-1"))
+                .andExpect(method(GET))
+                .andExpect(header("X-API-KEY", "key-1"))
+                .andRespond(withSuccess("""
+                        {"id":"item-1","status":"UPDATED","executionStatus":"SUCCESS","clientUserId":"42",
+                         "connector":{"id":201,"name":"Banco Teste","imageUrl":"https://example.com/x.png"}}
+                        """, MediaType.APPLICATION_JSON));
+
+        ProviderItem item = client.getItem("item-1");
+
+        assertEquals("item-1", item.id());
+        assertEquals("UPDATED", item.status());
+        assertEquals("Banco Teste", item.institutionName());
+        assertEquals("42", item.clientUserId());
+        server.verify();
+    }
+
+    @Test
+    void deletesItem() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(BASE_URL + "/items/item-1"))
+                .andExpect(method(DELETE))
+                .andExpect(header("X-API-KEY", "key-1"))
+                .andRespond(withSuccess("{\"count\":1}", MediaType.APPLICATION_JSON));
+
+        client.deleteItem("item-1");
+
         server.verify();
     }
 
