@@ -5,9 +5,7 @@ import com.globo.fintech_backend.Auth.entity.User;
 import com.globo.fintech_backend.Auth.exception.InvalidCredentialsException;
 import com.globo.fintech_backend.Auth.mapper.UserMapper;
 import com.globo.fintech_backend.Auth.repository.UserRepository;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import org.apache.catalina.mapper.Mapper;
+import com.globo.fintech_backend.exception.ResourceNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +36,7 @@ public class UserService {
             throw new InvalidCredentialsException("Password invalid");
         }
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getId(), user.getEmail());
 
         LoginResponseDTO response = new LoginResponseDTO();
         response.setToken(token);
@@ -63,7 +61,7 @@ public class UserService {
         user.setMonthlyIncome(dto.getMonthlyIncome());
         user.setCreatedAt(LocalDateTime.now());
         User savedUser = repository.save(user);
-        String token = jwtService.generateToken(savedUser.getEmail());
+        String token = jwtService.generateToken(savedUser.getId(), savedUser.getEmail());
 
         RegisterResponseDTO auth = new RegisterResponseDTO();
         auth.setId(savedUser.getId());
@@ -73,8 +71,13 @@ public class UserService {
         return auth;
     }
 
-    public UpdateResponseDTO update(UpdateDTO dto){
-        User user = repository.findById(dto.getId()).orElseThrow(() -> new RuntimeException("User not found"));
+    public UpdateResponseDTO update(Long userId, UpdateDTO dto){
+        User user = repository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        User existing = repository.findByEmail(dto.getEmail());
+        if (existing != null && !existing.getId().equals(userId)) {
+            throw new InvalidCredentialsException("Email duplicate");
+        }
 
         user.setEmail(dto.getEmail());
         user.setFullName(dto.getFullName());
@@ -93,8 +96,9 @@ public class UserService {
         return response;
     }
 
-    public LoginResponseDTO getCurrentUser(String email) {
-        User user = repository.findByEmail(email);
+    public LoginResponseDTO getCurrentUser(Long userId) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return mapper.toDTO(user);
     }
 }
