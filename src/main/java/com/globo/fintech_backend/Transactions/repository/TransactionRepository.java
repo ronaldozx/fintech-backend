@@ -29,6 +29,32 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("endDate") LocalDate endDate
     );
 
+    @Query("SELECT COALESCE(t.category, 'Outros') AS category, " +
+            "SUM(t.amount) AS total, " +
+            "COUNT(t) AS transactionCount " +
+            "FROM Transaction t " +
+            "WHERE t.user.id = :userId AND t.type = 'EXPENSE' AND t.date BETWEEN :startDate AND :endDate " +
+            "GROUP BY COALESCE(t.category, 'Outros') " +
+            "ORDER BY SUM(t.amount) ASC")
+    List<CategoryTotal> getExpensesByCategory(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT YEAR(t.date) AS periodYear, MONTH(t.date) AS periodMonth, " +
+            "SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END) AS income, " +
+            "SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END) AS expense " +
+            "FROM Transaction t " +
+            "WHERE t.user.id = :userId AND t.date BETWEEN :startDate AND :endDate " +
+            "GROUP BY YEAR(t.date), MONTH(t.date) " +
+            "ORDER BY YEAR(t.date) ASC, MONTH(t.date) ASC")
+    List<MonthTotal> getMonthlyTotals(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
     @Query("SELECT t.externalId FROM Transaction t WHERE t.user.id = :userId AND t.externalId IN :externalIds")
     Set<String> findExistingExternalIds(
             @Param("userId") Long userId,
