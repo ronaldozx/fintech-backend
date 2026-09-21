@@ -14,4 +14,6 @@ public interface OpenFinanceProvider {
     List<ProviderAccount> listAccounts(String itemId);
 
     List<ProviderTransaction> listTransactions(String accountId, LocalDate from, LocalDate to);
+
+    List<ProviderInvestment> listInvestments(String itemId);
 }
