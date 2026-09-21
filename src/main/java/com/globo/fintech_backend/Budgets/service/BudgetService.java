@@ -12,6 +12,7 @@ import com.globo.fintech_backend.Budgets.dto.CategorySpendDTO;
 import com.globo.fintech_backend.Budgets.entity.Budget;
 import com.globo.fintech_backend.Budgets.repository.BudgetRepository;
 import com.globo.fintech_backend.Transactions.repository.CategoryTotal;
+import com.globo.fintech_backend.common.MonthParser;
 import com.globo.fintech_backend.Transactions.repository.TransactionRepository;
 import com.globo.fintech_backend.exception.BadRequestException;
 import com.globo.fintech_backend.exception.ConflictException;
@@ -21,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DateTimeException;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
@@ -50,7 +50,7 @@ public class BudgetService {
 
     @Transactional(readOnly = true)
     public BudgetsOverviewDTO overview(Long userId, String monthText, YearMonth today) {
-        YearMonth month = parseMonth(monthText, today);
+        YearMonth month = MonthParser.parse(monthText, today);
 
         Map<String, BigDecimal> spentByCategory = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (CategoryTotal row : transactionRepository.getExpensesByCategory(
@@ -163,17 +163,6 @@ public class BudgetService {
                 percent,
                 statusFor(percent)
         );
-    }
-
-    private YearMonth parseMonth(String text, YearMonth today) {
-        if (text == null || text.isBlank()) {
-            return today;
-        }
-        try {
-            return YearMonth.parse(text.trim());
-        } catch (DateTimeException e) {
-            throw new BadRequestException("Mês inválido, use o formato AAAA-MM");
-        }
     }
 
     private BigDecimal validLimit(BigDecimal limit) {
