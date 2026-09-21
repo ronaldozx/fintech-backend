@@ -38,6 +38,11 @@ public class BankConnection {
 
     private LocalDateTime lastSyncedAt;
 
+    private LocalDateTime lastSyncAttemptAt;
+
+    @Column(length = 500)
+    private String lastSyncError;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

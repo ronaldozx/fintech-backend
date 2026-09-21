@@ -7,5 +7,8 @@ public record BankConnectionDTO(
         String itemId,
         String institutionName,
         String status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime lastSyncedAt,
+        LocalDateTime lastSyncAttemptAt,
+        String lastSyncError
 ) {}

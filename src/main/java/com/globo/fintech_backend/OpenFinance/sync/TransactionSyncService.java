@@ -27,6 +27,7 @@ public class TransactionSyncService {
 
     static final int INITIAL_HISTORY_MONTHS = 12;
     static final int OVERLAP_DAYS = 7;
+    static final int MAX_ERROR_LENGTH = 300;
     private static final String CARD_PAYMENT_CATEGORY = "Credit card payment";
 
     private final BankConnectionRepository connectionRepository;
@@ -68,11 +69,24 @@ public class TransactionSyncService {
     public SyncResultDTO syncUser(Long userId) {
         List<BankConnection> connections = connectionRepository.findByUserIdOrderByCreatedAtDesc(userId);
         int imported = 0;
+        int failed = 0;
+        RuntimeException firstFailure = null;
 
         for (BankConnection connection : connections) {
-            imported += syncConnection(connection);
+            try {
+                imported += syncConnection(connection);
+            } catch (RuntimeException e) {
+                failed++;
+                if (firstFailure == null) {
+                    firstFailure = e;
+                }
+            }
         }
-        return new SyncResultDTO(connections.size(), imported);
+
+        if (firstFailure != null && failed == connections.size()) {
+            throw firstFailure;
+        }
+        return new SyncResultDTO(connections.size(), imported, 0, failed);
     }
 
     public int syncConnection(BankConnection connection) {
@@ -80,17 +94,34 @@ public class TransactionSyncService {
 
         synchronized (userLocks.computeIfAbsent(userId, id -> new Object())) {
             LocalDate today = LocalDate.now(clock);
+            LocalDateTime attempt = LocalDateTime.now(clock);
             LocalDate from = startOfWindow(connection, today);
             int imported = 0;
 
-            for (ProviderAccount account : provider.listAccounts(connection.getItemId())) {
-                imported += syncAccount(connection, account, from, today);
+            try {
+                for (ProviderAccount account : provider.listAccounts(connection.getItemId())) {
+                    imported += syncAccount(connection, account, from, today);
+                }
+            } catch (RuntimeException e) {
+                connection.setLastSyncAttemptAt(attempt);
+                connection.setLastSyncError(describe(e));
+                connectionRepository.save(connection);
+                throw e;
             }
 
-            connection.setLastSyncedAt(LocalDateTime.now(clock));
+            connection.setLastSyncedAt(attempt);
+            connection.setLastSyncAttemptAt(attempt);
+            connection.setLastSyncError(null);
             connectionRepository.save(connection);
             return imported;
         }
+    }
+
+    private static String describe(RuntimeException error) {
+        String message = error.getMessage() == null || error.getMessage().isBlank()
+                ? error.getClass().getSimpleName()
+                : error.getMessage().trim();
+        return message.length() > MAX_ERROR_LENGTH ? message.substring(0, MAX_ERROR_LENGTH) : message;
     }
 
     private LocalDate startOfWindow(BankConnection connection, LocalDate today) {
