@@ -32,6 +32,8 @@ public class Transaction {
 
     private String externalId;
 
+    private Boolean neutral;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -105,6 +107,14 @@ public class Transaction {
 
     public void setExternalId(String externalId) {
         this.externalId = externalId;
+    }
+
+    public Boolean getNeutral() {
+        return neutral;
+    }
+
+    public void setNeutral(Boolean neutral) {
+        this.neutral = neutral;
     }
 
     public LocalDateTime getCreatedAt() {

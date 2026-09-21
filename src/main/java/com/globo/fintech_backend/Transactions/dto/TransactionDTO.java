@@ -12,5 +12,6 @@ public record TransactionDTO(
         LocalDate date,
         TransactionType type,
         PaymentMethod paymentMethod,
-        String category
+        String category,
+        Boolean neutral
 ) {}

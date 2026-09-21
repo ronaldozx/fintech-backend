@@ -65,7 +65,7 @@ class TransactionSyncServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-06-15T12:00:00Z"), ZoneOffset.UTC);
         service = new TransactionSyncService(
-                connectionRepository, transactionRepository, provider, new CategoryClassifier(), clock);
+                connectionRepository, transactionRepository, provider, new CategoryClassifier(), new CategoryTranslator(), clock);
 
         User user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -163,12 +163,37 @@ class TransactionSyncServiceTest {
     }
 
     @Test
-    void prefersTheProviderCategoryOverTheClassifier() {
+    void prefersTheProviderCategoryOverTheClassifierAndTranslatesIt() {
         List<Transaction> saved = importedFor(bankAccount(), List.of(
-                tx("t-1", "Mercado Extra", "10.00", ProviderTransactionType.DEBIT, true, "Health")
+                tx("t-1", "Loja qualquer", "10.00", ProviderTransactionType.DEBIT, true, "Groceries")
         ), Set.of());
 
-        assertEquals("Health", saved.get(0).getCategory());
+        assertEquals("Supermercado", saved.get(0).getCategory());
+    }
+
+    @Test
+    void keepsAnUnknownProviderCategoryAsItCame() {
+        List<Transaction> saved = importedFor(bankAccount(), List.of(
+                tx("t-1", "Loja qualquer", "10.00", ProviderTransactionType.DEBIT, true, "Categoria Inexistente")
+        ), Set.of());
+
+        assertEquals("Categoria Inexistente", saved.get(0).getCategory());
+    }
+
+    @Test
+    void marksCardBillPaymentsAndOwnTransfersAsNeutralSoTheyStayOutOfTheTotals() {
+        List<Transaction> saved = importedFor(bankAccount(), List.of(
+                tx("t-1", "Pagamento fatura", "1500.00", ProviderTransactionType.DEBIT, true, "Credit card payment"),
+                tx("t-2", "Pix para mim", "200.00", ProviderTransactionType.DEBIT, true, "Same person transfer - PIX"),
+                tx("t-3", "Mercado", "50.00", ProviderTransactionType.DEBIT, true, "Groceries"),
+                tx("t-4", "Sem categoria", "5.00", ProviderTransactionType.DEBIT, true, null)
+        ), Set.of());
+
+        assertEquals(Boolean.TRUE, saved.get(0).getNeutral());
+        assertEquals("Pagamento de cartão de crédito", saved.get(0).getCategory());
+        assertEquals(Boolean.TRUE, saved.get(1).getNeutral());
+        assertEquals(Boolean.FALSE, saved.get(2).getNeutral());
+        assertEquals(Boolean.FALSE, saved.get(3).getNeutral());
     }
 
     @Test
