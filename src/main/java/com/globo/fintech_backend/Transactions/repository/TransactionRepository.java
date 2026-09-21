@@ -40,6 +40,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             @Param("endDate") LocalDate endDate
     );
 
+    java.util.Optional<Transaction> findByIdAndUserId(Long id, Long userId);
+
+    @Query("SELECT t FROM Transaction t " +
+            "WHERE t.user.id = :userId AND (t.neutral IS NULL OR t.neutral = false) " +
+            "AND (t.userEdited IS NULL OR t.userEdited = false) AND (t.manual IS NULL OR t.manual = false) " +
+            "AND t.category LIKE 'Transfer%' ORDER BY t.date ASC, t.id ASC")
+    List<Transaction> findTransferCandidates(@Param("userId") Long userId);
+
     boolean existsByUserIdAndCategoryIsNull(Long userId);
 
     @Query("SELECT " +
