@@ -246,7 +246,8 @@ public class PluggyClient implements OpenFinanceProvider {
                 ProviderAccountType.valueOf(account.type()),
                 account.name(),
                 account.balance(),
-                account.currencyCode()
+                account.currencyCode(),
+                account.number()
         );
     }
 
