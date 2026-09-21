@@ -122,7 +122,7 @@ public class TransactionSearchService {
         }
     }
 
-    private static TransactionRowDTO toRow(Transaction transaction) {
+    public static TransactionRowDTO toRow(Transaction transaction) {
         return new TransactionRowDTO(
                 transaction.getId(),
                 transaction.getDescription(),
@@ -131,7 +131,10 @@ public class TransactionSearchService {
                 transaction.getType(),
                 transaction.getPaymentMethod(),
                 transaction.getCategory(),
-                Boolean.TRUE.equals(transaction.getNeutral())
+                Boolean.TRUE.equals(transaction.getNeutral()),
+                transaction.getNeutralReason(),
+                Boolean.TRUE.equals(transaction.getManual()),
+                Boolean.TRUE.equals(transaction.getUserEdited())
         );
     }
 }

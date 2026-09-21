@@ -14,5 +14,13 @@ public record TransactionRowDTO(
         TransactionType type,
         PaymentMethod paymentMethod,
         String category,
-        boolean neutral
-) {}
+        boolean neutral,
+        String neutralReason,
+        boolean manual,
+        boolean userEdited
+) {
+    public TransactionRowDTO(Long id, String description, BigDecimal amount, LocalDate date, TransactionType type,
+                             PaymentMethod paymentMethod, String category, boolean neutral) {
+        this(id, description, amount, date, type, paymentMethod, category, neutral, null, false, false);
+    }
+}

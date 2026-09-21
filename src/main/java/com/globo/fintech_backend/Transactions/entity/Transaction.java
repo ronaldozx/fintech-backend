@@ -34,6 +34,12 @@ public class Transaction {
 
     private Boolean neutral;
 
+    private String neutralReason;
+
+    private Boolean manual;
+
+    private Boolean userEdited;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 
@@ -115,6 +121,30 @@ public class Transaction {
 
     public void setNeutral(Boolean neutral) {
         this.neutral = neutral;
+    }
+
+    public String getNeutralReason() {
+        return neutralReason;
+    }
+
+    public void setNeutralReason(String neutralReason) {
+        this.neutralReason = neutralReason;
+    }
+
+    public Boolean getManual() {
+        return manual;
+    }
+
+    public void setManual(Boolean manual) {
+        this.manual = manual;
+    }
+
+    public Boolean getUserEdited() {
+        return userEdited;
+    }
+
+    public void setUserEdited(Boolean userEdited) {
+        this.userEdited = userEdited;
     }
 
     public LocalDateTime getCreatedAt() {
