@@ -75,11 +75,11 @@ class TransactionSyncServiceTest {
     }
 
     private static ProviderAccount bankAccount() {
-        return new ProviderAccount("acc-bank", ProviderAccountType.BANK, "Conta", BigDecimal.TEN, "BRL");
+        return new ProviderAccount("acc-bank", ProviderAccountType.BANK, "Conta", BigDecimal.TEN, "BRL", "123");
     }
 
     private static ProviderAccount cardAccount() {
-        return new ProviderAccount("acc-card", ProviderAccountType.CREDIT, "Cartão", BigDecimal.TEN, "BRL");
+        return new ProviderAccount("acc-card", ProviderAccountType.CREDIT, "Cartão", BigDecimal.TEN, "BRL", "4567");
     }
 
     private static ProviderTransaction tx(String id, String description, String amount,
