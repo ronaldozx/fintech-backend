@@ -79,6 +79,16 @@ class BankConnectionServiceTest {
     }
 
     @Test
+    void rejectsASecondConnectionToTheSameInstitutionForTheSameUser() {
+        when(repository.findByItemId(ITEM_ID)).thenReturn(Optional.empty());
+        when(provider.getItem(ITEM_ID)).thenReturn(new ProviderItem(ITEM_ID, "UPDATED", "Banco Teste", "7"));
+        when(repository.existsByUserIdAndInstitutionName(USER_ID, "Banco Teste")).thenReturn(true);
+
+        assertThrows(ConflictException.class, () -> service.register(USER_ID, ITEM_ID));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void rejectsAnItemOwnedByAnotherClientUser() {
         when(repository.findByItemId(ITEM_ID)).thenReturn(Optional.empty());
         when(provider.getItem(ITEM_ID)).thenReturn(new ProviderItem(ITEM_ID, "UPDATED", "Banco Teste", "99"));

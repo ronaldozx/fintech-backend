@@ -50,6 +50,12 @@ public class BankConnectionService {
             throw new ResourceNotFoundException("Conexão não encontrada");
         }
 
+        String institutionName = item.institutionName();
+        if (institutionName != null && repository.existsByUserIdAndInstitutionName(userId, institutionName)) {
+            throw new ConflictException("Você já tem uma conexão com " + institutionName
+                    + ". Desconecte a atual antes de conectar de novo, senão as transações entram em dobro.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
