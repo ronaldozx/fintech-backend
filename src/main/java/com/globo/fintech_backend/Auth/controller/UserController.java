@@ -31,6 +31,12 @@ public class UserController {
         return ResponseEntity.ok(service.update(SecurityUtils.getLoggedUserId(), dto));
     }
 
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordDTO dto){
+        service.changePassword(SecurityUtils.getLoggedUserId(), dto);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/me")
     public ResponseEntity<LoginResponseDTO> me() {
         return ResponseEntity.ok(service.getCurrentUser(SecurityUtils.getLoggedUserId()));

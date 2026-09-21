@@ -32,6 +32,11 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     int markAllRead(@Param("userId") Long userId, @Param("now") LocalDateTime now);
 
     @Transactional
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.user.id = :userId")
+    int deleteAllByUser(@Param("userId") Long userId);
+
+    @Transactional
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.user.id = :userId AND n.createdAt < :before")
     int deleteOlderThan(@Param("userId") Long userId, @Param("before") LocalDateTime before);
