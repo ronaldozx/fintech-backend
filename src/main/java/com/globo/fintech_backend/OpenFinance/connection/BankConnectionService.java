@@ -109,7 +109,10 @@ public class BankConnectionService {
                 connection.getItemId(),
                 connection.getInstitutionName(),
                 connection.getStatus(),
-                connection.getCreatedAt()
+                connection.getCreatedAt(),
+                connection.getLastSyncedAt(),
+                connection.getLastSyncAttemptAt(),
+                connection.getLastSyncError()
         );
     }
 }
