@@ -86,6 +86,11 @@ public class BudgetService {
         return new BudgetsOverviewDTO(month.toString(), progress, unbudgeted, totalSpent);
     }
 
+    @Transactional(readOnly = true)
+    public List<String> categories(Long userId) {
+        return transactionRepository.findExpenseCategories(userId);
+    }
+
     @Transactional
     public BudgetDTO create(Long userId, BudgetRequestDTO request) {
         BigDecimal limit = validLimit(request.monthlyLimit());

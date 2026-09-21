@@ -254,6 +254,13 @@ class BudgetServiceTest {
     }
 
     @Test
+    void offersOnlyTheCategoriesOfCountedExpenses() {
+        when(transactionRepository.findExpenseCategories(USER_ID)).thenReturn(List.of("Lazer", "Mercado"));
+
+        assertEquals(List.of("Lazer", "Mercado"), service.categories(USER_ID));
+    }
+
+    @Test
     void deletesAnOwnedBudget() {
         Budget existing = budget(1, "Mercado", "500.00");
         when(budgetRepository.findByIdAndUserId(1L, USER_ID)).thenReturn(Optional.of(existing));

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.YearMonth;
+import java.util.List;
 
 @RestController
 @RequestMapping("/budgets")
@@ -33,6 +34,11 @@ public class BudgetController {
     @GetMapping
     public ResponseEntity<BudgetsOverviewDTO> overview(@RequestParam(required = false) String month) {
         return ResponseEntity.ok(service.overview(SecurityUtils.getLoggedUserId(), month, YearMonth.now()));
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> categories() {
+        return ResponseEntity.ok(service.categories(SecurityUtils.getLoggedUserId()));
     }
 
     @PostMapping
