@@ -53,6 +53,23 @@ final class PluggyResponses {
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    record Investment(
+            String id,
+            String name,
+            String type,
+            String subtype,
+            BigDecimal balance,
+            BigDecimal amountOriginal,
+            BigDecimal amountProfit,
+            String dueDate,
+            String purchaseDate,
+            String issueDate,
+            String issuer,
+            BigDecimal rate,
+            String rateType
+    ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record Transaction(
             String id,
             String description,
