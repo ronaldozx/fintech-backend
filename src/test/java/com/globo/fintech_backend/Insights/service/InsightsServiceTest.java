@@ -134,8 +134,19 @@ class InsightsServiceTest {
     }
 
     @Test
+    void doesNotCompareWithAPreviousMonthThatHasNoExpenses() {
+        data(List.of(expense("2026-09-02", "Mercado", "Mercado A", "700")));
+
+        InsightsDTO insights = service.insights(USER_ID, "2026-09", SEPTEMBER_10);
+
+        assertTrue(insights.movers().increases().isEmpty());
+        assertTrue(insights.movers().decreases().isEmpty());
+    }
+
+    @Test
     void keepsOnlyTheThreeBiggestMoversOfEachKind() {
         List<Transaction> expenses = new ArrayList<>();
+        expenses.add(expense("2026-08-01", "Base", "Base", "10"));
         for (int i = 1; i <= 5; i++) {
             expenses.add(expense("2026-09-0" + i, "Categoria " + i, "Compra " + i, String.valueOf(i * 100)));
         }
@@ -149,7 +160,7 @@ class InsightsServiceTest {
 
     @Test
     void treatsUncategorizedExpensesAsOutros() {
-        data(List.of(expense("2026-09-02", null, "Algo", "80")));
+        data(List.of(expense("2026-08-02", "Base", "Base", "10"), expense("2026-09-02", null, "Algo", "80")));
 
         assertEquals("Outros", service.insights(USER_ID, "2026-09", SEPTEMBER_10).movers().increases().get(0).category());
     }

@@ -101,6 +101,10 @@ public class InsightsService {
     }
 
     private static CategoryMovers movers(List<Expense> current, List<Expense> before) {
+        if (before.isEmpty()) {
+            return new CategoryMovers(List.of(), List.of());
+        }
+
         Map<String, BigDecimal> now = totalsByCategory(current);
         Map<String, BigDecimal> then = totalsByCategory(before);
 
