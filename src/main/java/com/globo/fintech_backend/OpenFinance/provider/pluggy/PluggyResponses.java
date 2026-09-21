@@ -31,6 +31,9 @@ final class PluggyResponses {
     record Page<T>(int page, int totalPages, List<T> results) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
+    record CursorPage<T>(List<T> results, String next) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
     record Account(String id, String type, String name, BigDecimal balance, String currencyCode) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
