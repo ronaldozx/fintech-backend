@@ -303,6 +303,36 @@ class PluggyClientTest {
         assertThrows(OpenFinanceException.class, () -> client.createConnectToken(1L));
     }
 
+    @Test
+    void mapsInvestmentsUsingTheOriginalAmountAndTheIssueDateAsFallback() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(BASE_URL + "/investments?itemId=item-1&page=1"))
+                .andExpect(method(GET))
+                .andExpect(header("X-API-KEY", "key-1"))
+                .andRespond(withSuccess("""
+                        {"total":2,"totalPages":1,"page":1,"results":[
+                          {"id":"i-1","name":"CDB Banco X","type":"FIXED_INCOME","subtype":"CDB","balance":1050.5,
+                           "amountOriginal":1000,"amountProfit":50.5,"dueDate":"2028-05-10T00:00:00.000Z",
+                           "purchaseDate":"2026-01-10T00:00:00.000Z","issuer":"Banco X","rate":100,"rateType":"CDI","status":"ACTIVE"},
+                          {"id":"i-2","name":"Fundo Y","type":"MUTUAL_FUND","balance":null,"amountOriginal":null,
+                           "issueDate":"2025-12-01T00:00:00.000Z"}
+                        ]}
+                        """, MediaType.APPLICATION_JSON));
+
+        List<com.globo.fintech_backend.OpenFinance.provider.ProviderInvestment> investments = client.listInvestments("item-1");
+
+        assertEquals(2, investments.size());
+        assertEquals("CDB", investments.get(0).subtype());
+        assertEquals(new BigDecimal("1050.5"), investments.get(0).balance());
+        assertEquals(new BigDecimal("1000"), investments.get(0).invested());
+        assertEquals(LocalDate.of(2028, 5, 10), investments.get(0).dueDate());
+        assertEquals(LocalDate.of(2026, 1, 10), investments.get(0).purchaseDate());
+        assertEquals("CDI", investments.get(0).rateType());
+        assertEquals(BigDecimal.ZERO, investments.get(1).balance());
+        assertEquals(LocalDate.of(2025, 12, 1), investments.get(1).purchaseDate());
+        server.verify();
+    }
+
     private static final class MutableClock extends Clock {
 
         private Instant now;

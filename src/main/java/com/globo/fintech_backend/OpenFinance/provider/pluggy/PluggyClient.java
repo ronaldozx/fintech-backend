@@ -5,6 +5,7 @@ import com.globo.fintech_backend.OpenFinance.exception.OpenFinanceUnavailableExc
 import com.globo.fintech_backend.OpenFinance.provider.OpenFinanceProvider;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderAccount;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderAccountType;
+import com.globo.fintech_backend.OpenFinance.provider.ProviderInvestment;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderItem;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransaction;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransactionType;
@@ -17,6 +18,7 @@ import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Con
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenRequest;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenResponse;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.CursorPage;
+import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Investment;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Item;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Page;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Transaction;
@@ -28,6 +30,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.math.BigDecimal;
 import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
@@ -119,6 +122,17 @@ public class PluggyClient implements OpenFinanceProvider {
                 .body(new ParameterizedTypeReference<Page<Account>>() {}));
 
         return accounts.stream().map(this::toProviderAccount).toList();
+    }
+
+    @Override
+    public List<ProviderInvestment> listInvestments(String itemId) {
+        List<Investment> investments = fetchAll("list investments", page -> restClient.get()
+                .uri("/investments?itemId={itemId}&page={page}", itemId, page)
+                .header(API_KEY_HEADER, getApiKey())
+                .retrieve()
+                .body(new ParameterizedTypeReference<Page<Investment>>() {}));
+
+        return investments.stream().map(this::toProviderInvestment).toList();
     }
 
     @Override
@@ -260,6 +274,23 @@ public class PluggyClient implements OpenFinanceProvider {
                 credit == null ? null : credit.brand(),
                 bank == null ? null : bank.overdraftContractedLimit(),
                 bank == null ? null : bank.overdraftUsedLimit()
+        );
+    }
+
+    private ProviderInvestment toProviderInvestment(Investment investment) {
+        return new ProviderInvestment(
+                investment.id(),
+                investment.name(),
+                investment.type(),
+                investment.subtype(),
+                investment.balance() == null ? BigDecimal.ZERO : investment.balance(),
+                investment.amountOriginal(),
+                investment.amountProfit(),
+                parseOptionalDate(investment.dueDate()),
+                parseOptionalDate(investment.purchaseDate() != null ? investment.purchaseDate() : investment.issueDate()),
+                investment.issuer(),
+                investment.rate(),
+                investment.rateType()
         );
     }
 
