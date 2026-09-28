@@ -267,4 +267,71 @@ class TransactionSyncServiceTest {
         assertEquals(1, result.connections());
         assertEquals(1, result.imported());
     }
+
+    private BankConnection otherConnection(String itemId) {
+        BankConnection other = new BankConnection();
+        other.setUser(connection.getUser());
+        other.setItemId(itemId);
+        return other;
+    }
+
+    @Test
+    void aFailedSyncRecordsTheErrorAndTheAttemptWithoutMarkingItSynced() {
+        when(provider.listAccounts(ITEM_ID)).thenThrow(new IllegalStateException("Pluggy fora do ar"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> service.syncConnection(connection));
+
+        assertEquals("Pluggy fora do ar", connection.getLastSyncError());
+        assertNotNull(connection.getLastSyncAttemptAt());
+        org.junit.jupiter.api.Assertions.assertNull(connection.getLastSyncedAt());
+        verify(connectionRepository).save(connection);
+    }
+
+    @Test
+    void aLongErrorIsTruncated() {
+        when(provider.listAccounts(ITEM_ID)).thenThrow(new IllegalStateException("x".repeat(1000)));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> service.syncConnection(connection));
+
+        assertEquals(TransactionSyncService.MAX_ERROR_LENGTH, connection.getLastSyncError().length());
+    }
+
+    @Test
+    void aSuccessfulSyncClearsThePreviousError() {
+        connection.setLastSyncError("falhou antes");
+        when(provider.listAccounts(ITEM_ID)).thenReturn(List.of());
+
+        service.syncConnection(connection);
+
+        org.junit.jupiter.api.Assertions.assertNull(connection.getLastSyncError());
+        assertNotNull(connection.getLastSyncedAt());
+        assertNotNull(connection.getLastSyncAttemptAt());
+    }
+
+    @Test
+    void syncUserKeepsGoingAfterOneConnectionFails() {
+        BankConnection healthy = otherConnection("item-2");
+        when(connectionRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(connection, healthy));
+        when(provider.listAccounts(ITEM_ID)).thenThrow(new IllegalStateException("falhou"));
+        when(provider.listAccounts("item-2")).thenReturn(List.of(bankAccount()));
+        when(provider.listTransactions(any(), any(), any())).thenReturn(List.of(
+                tx("t-1", "Mercado", "10.00", ProviderTransactionType.DEBIT, true, null)));
+        when(transactionRepository.findExistingExternalIds(eq(USER_ID), anyCollection())).thenReturn(Set.of());
+
+        SyncResultDTO result = service.syncUser(USER_ID);
+
+        assertEquals(2, result.connections());
+        assertEquals(1, result.imported());
+        assertEquals(1, result.failed());
+        assertEquals("falhou", connection.getLastSyncError());
+        org.junit.jupiter.api.Assertions.assertNull(healthy.getLastSyncError());
+    }
+
+    @Test
+    void syncUserFailsWhenEveryConnectionFails() {
+        when(connectionRepository.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(connection));
+        when(provider.listAccounts(ITEM_ID)).thenThrow(new IllegalStateException("falhou"));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> service.syncUser(USER_ID));
+    }
 }
