@@ -14,6 +14,7 @@ import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Aut
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenOptions;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenRequest;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenResponse;
+import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.CursorPage;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Item;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Page;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Transaction;
@@ -23,7 +24,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -39,12 +42,14 @@ public class PluggyClient implements OpenFinanceProvider {
 
     private static final String API_KEY_HEADER = "X-API-KEY";
     private static final Duration API_KEY_TTL = Duration.ofMinutes(110);
-    private static final int PAGE_SIZE = 500;
     private static final int FIRST_PAGE = 1;
+    private static final int MAX_TRANSACTION_PAGES = 200;
+    private static final String TRANSACTIONS_PATH = "/v2/transactions";
 
     private final RestClient restClient;
     private final PluggyProperties properties;
     private final Clock clock;
+    private final String baseUrl;
 
     private String apiKey;
     private Instant apiKeyExpiresAt = Instant.MIN;
@@ -55,7 +60,8 @@ public class PluggyClient implements OpenFinanceProvider {
     }
 
     PluggyClient(RestClient.Builder builder, PluggyProperties properties, Clock clock) {
-        this.restClient = builder.baseUrl(properties.baseUrl()).build();
+        this.baseUrl = properties.baseUrl().replaceAll("/+$", "");
+        this.restClient = builder.baseUrl(baseUrl).build();
         this.properties = properties;
         this.clock = clock;
     }
@@ -115,14 +121,74 @@ public class PluggyClient implements OpenFinanceProvider {
 
     @Override
     public List<ProviderTransaction> listTransactions(String accountId, LocalDate from, LocalDate to) {
-        List<Transaction> transactions = fetchAll("list transactions", page -> restClient.get()
-                .uri("/transactions?accountId={accountId}&from={from}&to={to}&pageSize={pageSize}&page={page}",
-                        accountId, from, to, PAGE_SIZE, page)
-                .header(API_KEY_HEADER, getApiKey())
-                .retrieve()
-                .body(new ParameterizedTypeReference<Page<Transaction>>() {}));
+        List<Transaction> transactions = new ArrayList<>();
+        URI uri = firstTransactionsUri(accountId, from, to);
+        String previousCursor = null;
 
-        return transactions.stream().map(this::toProviderTransaction).toList();
+        for (int page = 0; page < MAX_TRANSACTION_PAGES; page++) {
+            URI current = uri;
+            CursorPage<Transaction> result = call("list transactions", () -> restClient.get()
+                    .uri(current)
+                    .header(API_KEY_HEADER, getApiKey())
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<CursorPage<Transaction>>() {}));
+
+            if (result == null || result.results() == null) {
+                throw new OpenFinanceException("Resposta inválida do provedor ao executar: list transactions");
+            }
+            transactions.addAll(result.results());
+
+            String cursor = result.next();
+            if (cursor == null || cursor.isBlank()) {
+                return transactions.stream().map(this::toProviderTransaction).toList();
+            }
+            if (cursor.equals(previousCursor)) {
+                throw new OpenFinanceException("Paginação inválida do provedor: cursor repetido");
+            }
+            previousCursor = cursor;
+            uri = nextTransactionsUri(cursor, accountId, from, to);
+        }
+
+        throw new OpenFinanceException("Limite de páginas de transações excedido");
+    }
+
+    private URI firstTransactionsUri(String accountId, LocalDate from, LocalDate to) {
+        return UriComponentsBuilder.fromUriString(baseUrl)
+                .path(TRANSACTIONS_PATH)
+                .queryParam("accountId", accountId)
+                .queryParam("dateFrom", from)
+                .queryParam("dateTo", to)
+                .build()
+                .toUri();
+    }
+
+    private URI nextTransactionsUri(String cursor, String accountId, LocalDate from, LocalDate to) {
+        String value = cursor.trim();
+        try {
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                if (!value.startsWith(baseUrl)) {
+                    throw new OpenFinanceException("Cursor de paginação aponta para outro servidor");
+                }
+                return URI.create(value);
+            }
+            if (value.startsWith("/")) {
+                return URI.create(baseUrl + value);
+            }
+            String query = value.startsWith("?") ? value.substring(1) : value;
+            if (query.contains("=")) {
+                return URI.create(baseUrl + TRANSACTIONS_PATH + "?" + query);
+            }
+            return UriComponentsBuilder.fromUriString(baseUrl)
+                    .path(TRANSACTIONS_PATH)
+                    .queryParam("accountId", accountId)
+                    .queryParam("dateFrom", from)
+                    .queryParam("dateTo", to)
+                    .queryParam("after", query)
+                    .build()
+                    .toUri();
+        } catch (IllegalArgumentException e) {
+            throw new OpenFinanceException("Cursor de paginação inválido", e);
+        }
     }
 
     private <T> List<T> fetchAll(String operation, IntFunction<Page<T>> fetchPage) {

@@ -39,6 +39,8 @@ import static org.springframework.http.HttpMethod.POST;
 class PluggyClientTest {
 
     private static final String BASE_URL = "https://api.pluggy.ai";
+    private static final String FIRST_TRANSACTIONS_URL =
+            BASE_URL + "/v2/transactions?accountId=acc-1&dateFrom=2026-01-01&dateTo=2026-01-31";
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-01-01T00:00:00Z"));
     private MockRestServiceServer server;
@@ -138,16 +140,16 @@ class PluggyClientTest {
     @Test
     void mapsTransactionsIncludingDateStatusAndOptionalCategory() {
         expectAuth("key-1");
-        server.expect(once(), requestTo(BASE_URL
-                        + "/transactions?accountId=acc-1&from=2026-01-01&to=2026-01-31&pageSize=500&page=1"))
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
                 .andExpect(header("X-API-KEY", "key-1"))
                 .andRespond(withSuccess("""
-                        {"page":1,"total":2,"totalPages":1,"results":[
+                        {"results":[
                           {"id":"t-1","description":"Mercado","amount":-150.50,"date":"2026-01-05T00:00:00.000Z",
-                           "type":"DEBIT","status":"POSTED","category":"Groceries","currencyCode":"BRL","balance":100},
+                           "type":"DEBIT","status":"POSTED","category":"Groceries","currencyCode":"BRL","balance":100,
+                           "operationType":"PIX","merchant":null,"paymentData":null},
                           {"id":"t-2","description":"Salário","amount":3000,"date":"2026-01-10",
                            "type":"CREDIT","status":"PENDING","currencyCode":"BRL"}
-                        ]}
+                        ],"next":null}
                         """, MediaType.APPLICATION_JSON));
 
         List<ProviderTransaction> transactions =
@@ -168,6 +170,88 @@ class PluggyClientTest {
         assertEquals(ProviderTransactionType.CREDIT, second.type());
         assertEquals(null, second.category());
         assertFalse(second.posted());
+        server.verify();
+    }
+
+    private static String transactionsPage(String id, String next) {
+        String cursor = next == null ? "null" : "\"" + next + "\"";
+        return "{\"results\":[{\"id\":\"" + id + "\",\"description\":\"x\",\"amount\":-1,"
+                + "\"date\":\"2026-01-05T00:00:00.000Z\",\"type\":\"DEBIT\",\"status\":\"POSTED\"}],\"next\":" + cursor + "}";
+    }
+
+    private List<ProviderTransaction> fetchJanuary() {
+        return client.listTransactions("acc-1", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31));
+    }
+
+    @Test
+    void followsAQueryStringCursorUntilItIsNull() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
+                .andRespond(withSuccess(transactionsPage("t-1", "accountId=acc-1&after=abc"), MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo(BASE_URL + "/v2/transactions?accountId=acc-1&after=abc"))
+                .andRespond(withSuccess(transactionsPage("t-2", null), MediaType.APPLICATION_JSON));
+
+        List<ProviderTransaction> transactions = fetchJanuary();
+
+        assertEquals(List.of("t-1", "t-2"), transactions.stream().map(ProviderTransaction::id).toList());
+        server.verify();
+    }
+
+    @Test
+    void followsACursorThatComesWithALeadingQuestionMark() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
+                .andRespond(withSuccess(transactionsPage("t-1", "?accountId=acc-1&after=abc"), MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo(BASE_URL + "/v2/transactions?accountId=acc-1&after=abc"))
+                .andRespond(withSuccess(transactionsPage("t-2", null), MediaType.APPLICATION_JSON));
+
+        assertEquals(2, fetchJanuary().size());
+        server.verify();
+    }
+
+    @Test
+    void followsAFullUrlCursorOnTheSameHost() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
+                .andRespond(withSuccess(transactionsPage("t-1", BASE_URL + "/v2/transactions?accountId=acc-1&after=abc"), MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo(BASE_URL + "/v2/transactions?accountId=acc-1&after=abc"))
+                .andRespond(withSuccess(transactionsPage("t-2", null), MediaType.APPLICATION_JSON));
+
+        assertEquals(2, fetchJanuary().size());
+        server.verify();
+    }
+
+    @Test
+    void sendsABareCursorAsTheAfterParameter() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
+                .andRespond(withSuccess(transactionsPage("t-1", "opaqueToken"), MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL + "&after=opaqueToken"))
+                .andRespond(withSuccess(transactionsPage("t-2", null), MediaType.APPLICATION_JSON));
+
+        assertEquals(2, fetchJanuary().size());
+        server.verify();
+    }
+
+    @Test
+    void refusesACursorThatPointsToAnotherServer() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
+                .andRespond(withSuccess(transactionsPage("t-1", "https://evil.example.com/steal?x=1"), MediaType.APPLICATION_JSON));
+
+        assertThrows(OpenFinanceException.class, this::fetchJanuary);
+        server.verify();
+    }
+
+    @Test
+    void stopsWhenTheProviderRepeatsTheSameCursor() {
+        expectAuth("key-1");
+        server.expect(once(), requestTo(FIRST_TRANSACTIONS_URL))
+                .andRespond(withSuccess(transactionsPage("t-1", "accountId=acc-1&after=abc"), MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo(BASE_URL + "/v2/transactions?accountId=acc-1&after=abc"))
+                .andRespond(withSuccess(transactionsPage("t-2", "accountId=acc-1&after=abc"), MediaType.APPLICATION_JSON));
+
+        assertThrows(OpenFinanceException.class, this::fetchJanuary);
         server.verify();
     }
 
