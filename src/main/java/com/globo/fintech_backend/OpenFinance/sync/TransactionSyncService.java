@@ -27,12 +27,14 @@ public class TransactionSyncService {
 
     static final int INITIAL_HISTORY_MONTHS = 12;
     static final int OVERLAP_DAYS = 7;
+    private static final String CARD_PAYMENT_CATEGORY = "Credit card payment";
 
     private final BankConnectionRepository connectionRepository;
     private final TransactionRepository transactionRepository;
     private final OpenFinanceProvider provider;
     private final CategoryClassifier classifier;
     private final CategoryTranslator translator;
+    private final CardBillPaymentDetector billDetector;
     private final Clock clock;
     private final ConcurrentHashMap<Long, Object> userLocks = new ConcurrentHashMap<>();
 
@@ -41,8 +43,10 @@ public class TransactionSyncService {
                                   TransactionRepository transactionRepository,
                                   OpenFinanceProvider provider,
                                   CategoryClassifier classifier,
-                                  CategoryTranslator translator) {
-        this(connectionRepository, transactionRepository, provider, classifier, translator, Clock.systemDefaultZone());
+                                  CategoryTranslator translator,
+                                  CardBillPaymentDetector billDetector) {
+        this(connectionRepository, transactionRepository, provider, classifier, translator, billDetector,
+                Clock.systemDefaultZone());
     }
 
     TransactionSyncService(BankConnectionRepository connectionRepository,
@@ -50,12 +54,14 @@ public class TransactionSyncService {
                            OpenFinanceProvider provider,
                            CategoryClassifier classifier,
                            CategoryTranslator translator,
+                           CardBillPaymentDetector billDetector,
                            Clock clock) {
         this.connectionRepository = connectionRepository;
         this.transactionRepository = transactionRepository;
         this.provider = provider;
         this.classifier = classifier;
         this.translator = translator;
+        this.billDetector = billDetector;
         this.clock = clock;
     }
 
@@ -136,6 +142,14 @@ public class TransactionSyncService {
         transaction.setPaymentMethod(account.type() == ProviderAccountType.CREDIT ? PaymentMethod.CREDIT : PaymentMethod.DEBIT);
         transaction.setCategory(resolveCategory(source));
         transaction.setNeutral(translator.isNeutral(source.category()));
+
+        boolean bankBillPayment = expense
+                && account.type() == ProviderAccountType.BANK
+                && billDetector.matches(source.description());
+        if (bankBillPayment) {
+            transaction.setNeutral(true);
+            transaction.setCategory(translator.translate(CARD_PAYMENT_CATEGORY));
+        }
         return transaction;
     }
 

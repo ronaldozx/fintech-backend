@@ -65,7 +65,7 @@ class TransactionSyncServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(Instant.parse("2026-06-15T12:00:00Z"), ZoneOffset.UTC);
         service = new TransactionSyncService(
-                connectionRepository, transactionRepository, provider, new CategoryClassifier(), new CategoryTranslator(), clock);
+                connectionRepository, transactionRepository, provider, new CategoryClassifier(), new CategoryTranslator(), new CardBillPaymentDetector(), clock);
 
         User user = new User();
         ReflectionTestUtils.setField(user, "id", USER_ID);
@@ -194,6 +194,29 @@ class TransactionSyncServiceTest {
         assertEquals(Boolean.TRUE, saved.get(1).getNeutral());
         assertEquals(Boolean.FALSE, saved.get(2).getNeutral());
         assertEquals(Boolean.FALSE, saved.get(3).getNeutral());
+    }
+
+    @Test
+    void treatsABankDebitNamedBillPaymentAsACardPaymentEvenWhenTheProviderCalledItATransfer() {
+        List<Transaction> saved = importedFor(bankAccount(), List.of(
+                tx("t-1", "PAGAMENTO DE FATURA", "1200.00", ProviderTransactionType.DEBIT, true, "Transfers"),
+                tx("t-2", "PAGAMENTO DE FATURA ENEL", "150.00", ProviderTransactionType.DEBIT, true, "Utilities"),
+                tx("t-3", "PIX recebido", "200.00", ProviderTransactionType.CREDIT, true, "Transfers")
+        ), Set.of());
+
+        assertEquals(Boolean.TRUE, saved.get(0).getNeutral());
+        assertEquals("Pagamento de cartão de crédito", saved.get(0).getCategory());
+        assertEquals(Boolean.FALSE, saved.get(1).getNeutral());
+        assertEquals(Boolean.FALSE, saved.get(2).getNeutral());
+    }
+
+    @Test
+    void neverTreatsACardPurchaseAsABillPayment() {
+        List<Transaction> saved = importedFor(cardAccount(), List.of(
+                tx("c-1", "PAGAMENTO DE FATURA", "100.00", ProviderTransactionType.DEBIT, true, null)
+        ), Set.of());
+
+        assertEquals(Boolean.FALSE, saved.get(0).getNeutral());
     }
 
     @Test
