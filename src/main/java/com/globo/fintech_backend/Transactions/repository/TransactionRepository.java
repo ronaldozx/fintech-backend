@@ -48,6 +48,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             "AND t.category LIKE 'Transfer%' ORDER BY t.date ASC, t.id ASC")
     List<Transaction> findTransferCandidates(@Param("userId") Long userId);
 
+    List<Transaction> findByUserIdOrderByDateDescIdDesc(Long userId);
+
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM Transaction t WHERE t.user.id = :userId")
+    int deleteAllByUser(@Param("userId") Long userId);
+
     boolean existsByUserIdAndCategoryIsNull(Long userId);
 
     @Query("SELECT " +
