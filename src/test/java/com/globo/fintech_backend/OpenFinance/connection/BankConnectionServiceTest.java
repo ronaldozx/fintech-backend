@@ -4,6 +4,8 @@ import com.globo.fintech_backend.Auth.entity.User;
 import com.globo.fintech_backend.Auth.repository.UserRepository;
 import com.globo.fintech_backend.OpenFinance.connection.dto.BankConnectionDTO;
 import com.globo.fintech_backend.OpenFinance.provider.OpenFinanceProvider;
+import com.globo.fintech_backend.OpenFinance.provider.ProviderAccount;
+import com.globo.fintech_backend.OpenFinance.provider.ProviderAccountType;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderItem;
 import com.globo.fintech_backend.exception.BadRequestException;
 import com.globo.fintech_backend.exception.ConflictException;
@@ -15,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,6 +79,56 @@ class BankConnectionServiceTest {
         assertEquals(ITEM_ID, dto.itemId());
         assertEquals("Banco Teste", dto.institutionName());
         assertEquals("UPDATED", dto.status());
+    }
+
+    private static ProviderAccount account(String number) {
+        return new ProviderAccount("id-" + number, ProviderAccountType.BANK, "Conta", BigDecimal.TEN, "BRL", number);
+    }
+
+    private void expectNewItemForTheUser() {
+        when(repository.findByItemId(ITEM_ID)).thenReturn(Optional.empty());
+        when(provider.getItem(ITEM_ID)).thenReturn(new ProviderItem(ITEM_ID, "UPDATED", "MeuPluggy", "7"));
+    }
+
+    @Test
+    void allowsASecondConnectionToTheSameInstitutionWhenItBringsDifferentAccounts() {
+        expectNewItemForTheUser();
+        BankConnection existing = connection(1L, user(USER_ID));
+        existing.setItemId("item-0");
+        when(repository.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(existing));
+        when(provider.listAccounts(ITEM_ID)).thenReturn(List.of(account("111")));
+        when(provider.listAccounts("item-0")).thenReturn(List.of(account("222")));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(USER_ID)));
+        when(repository.save(any(BankConnection.class))).thenAnswer(call -> call.getArgument(0));
+
+        BankConnectionDTO dto = service.register(USER_ID, ITEM_ID);
+
+        assertEquals("MeuPluggy", dto.institutionName());
+    }
+
+    @Test
+    void rejectsAConnectionThatSharesAnAccountWithAnExistingOne() {
+        expectNewItemForTheUser();
+        BankConnection existing = connection(1L, user(USER_ID));
+        existing.setItemId("item-0");
+        when(repository.findByUserIdOrderByCreatedAtDesc(USER_ID)).thenReturn(List.of(existing));
+        when(provider.listAccounts(ITEM_ID)).thenReturn(List.of(account("111"), account("333")));
+        when(provider.listAccounts("item-0")).thenReturn(List.of(account("333")));
+
+        assertThrows(ConflictException.class, () -> service.register(USER_ID, ITEM_ID));
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void doesNotCompareConnectionsWhenTheNewAccountsHaveNoNumber() {
+        expectNewItemForTheUser();
+        when(provider.listAccounts(ITEM_ID)).thenReturn(List.of(account(null)));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user(USER_ID)));
+        when(repository.save(any(BankConnection.class))).thenAnswer(call -> call.getArgument(0));
+
+        service.register(USER_ID, ITEM_ID);
+
+        verify(repository, never()).findByUserIdOrderByCreatedAtDesc(any());
     }
 
     @Test

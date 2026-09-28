@@ -1,5 +1,6 @@
 package com.globo.fintech_backend.Transactions.controller;
 import com.globo.fintech_backend.Transactions.dto.CategorySummaryDTO;
+import com.globo.fintech_backend.Transactions.dto.DailySummaryDTO;
 import com.globo.fintech_backend.Transactions.dto.MonthlySummaryDTO;
 import com.globo.fintech_backend.Transactions.dto.TransactionDashboardDTO;
 import com.globo.fintech_backend.Transactions.service.TransactionService;
@@ -39,6 +40,15 @@ public class TransactionController {
     ){
         Long userId = SecurityUtils.getLoggedUserId();
         return ResponseEntity.ok(transactionService.getExpensesByCategory(userId, startDate, endDate));
+    }
+
+    @GetMapping("/summary/daily")
+    public ResponseEntity<List<DailySummaryDTO>> getDailySummary(
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ){
+        Long userId = SecurityUtils.getLoggedUserId();
+        return ResponseEntity.ok(transactionService.getDailySummary(userId, startDate, endDate));
     }
 
     @GetMapping("/summary/monthly")

@@ -1,6 +1,7 @@
 package com.globo.fintech_backend.Transactions.service;
 
 import com.globo.fintech_backend.Transactions.dto.CategorySummaryDTO;
+import com.globo.fintech_backend.Transactions.dto.DailySummaryDTO;
 import com.globo.fintech_backend.Transactions.dto.MonthlySummaryDTO;
 import com.globo.fintech_backend.Transactions.dto.TransactionDTO;
 import com.globo.fintech_backend.Transactions.dto.TransactionDashboardDTO;
@@ -43,6 +44,16 @@ public class TransactionService {
         return transactionRepository.getMonthlyTotals(userId, startDate, endDate).stream()
                 .map(total -> new MonthlySummaryDTO(
                         String.format("%04d-%02d", total.getPeriodYear(), total.getPeriodMonth()),
+                        orZero(total.getIncome()),
+                        orZero(total.getExpense()).abs()))
+                .toList();
+    }
+
+    public List<DailySummaryDTO> getDailySummary(Long userId, LocalDate startDate, LocalDate endDate){
+        requireValidRange(startDate, endDate);
+        return transactionRepository.getDailyTotals(userId, startDate, endDate).stream()
+                .map(total -> new DailySummaryDTO(
+                        total.getPeriodDate(),
                         orZero(total.getIncome()),
                         orZero(total.getExpense()).abs()))
                 .toList();

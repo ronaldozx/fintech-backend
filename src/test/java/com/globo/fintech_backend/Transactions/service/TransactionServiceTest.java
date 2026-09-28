@@ -1,6 +1,8 @@
 package com.globo.fintech_backend.Transactions.service;
 
 import com.globo.fintech_backend.Transactions.dto.CategorySummaryDTO;
+import com.globo.fintech_backend.Transactions.dto.DailySummaryDTO;
+import com.globo.fintech_backend.Transactions.repository.DayTotal;
 import com.globo.fintech_backend.Transactions.dto.MonthlySummaryDTO;
 import com.globo.fintech_backend.Transactions.repository.CategoryTotal;
 import com.globo.fintech_backend.Transactions.repository.MonthTotal;
@@ -126,11 +128,40 @@ class TransactionServiceTest {
     }
 
     @Test
+    void dailyTotalsKeepTheDateAndReportExpensesAsPositive() {
+        DayTotal day = new DayTotal() {
+            @Override
+            public LocalDate getPeriodDate() {
+                return LocalDate.of(2026, 9, 4);
+            }
+
+            @Override
+            public BigDecimal getIncome() {
+                return new BigDecimal("200.00");
+            }
+
+            @Override
+            public BigDecimal getExpense() {
+                return new BigDecimal("-980.00");
+            }
+        };
+        List<DayTotal> totals = List.of(day);
+        when(repository.getDailyTotals(USER_ID, START, END)).thenReturn(totals);
+
+        DailySummaryDTO result = service.getDailySummary(USER_ID, START, END).get(0);
+
+        assertEquals(LocalDate.of(2026, 9, 4), result.date());
+        assertEquals(new BigDecimal("200.00"), result.income());
+        assertEquals(new BigDecimal("980.00"), result.expense());
+    }
+
+    @Test
     void rejectsAnInvertedRangeOnEveryQuery() {
         LocalDate later = END.plusDays(1);
 
         assertThrows(BadRequestException.class, () -> service.getExpensesByCategory(USER_ID, later, END));
         assertThrows(BadRequestException.class, () -> service.getMonthlySummary(USER_ID, later, END));
+        assertThrows(BadRequestException.class, () -> service.getDailySummary(USER_ID, later, END));
         assertThrows(BadRequestException.class, () -> service.getDashboardData(USER_ID, later, END, Pageable.unpaged()));
         verify(repository, never()).getExpensesByCategory(USER_ID, later, END);
     }

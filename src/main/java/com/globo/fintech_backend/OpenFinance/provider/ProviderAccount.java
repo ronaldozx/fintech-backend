@@ -7,5 +7,6 @@ public record ProviderAccount(
         ProviderAccountType type,
         String name,
         BigDecimal balance,
-        String currencyCode
+        String currencyCode,
+        String number
 ) {}

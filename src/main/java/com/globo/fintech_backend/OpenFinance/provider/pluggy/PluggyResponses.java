@@ -34,7 +34,7 @@ final class PluggyResponses {
     record CursorPage<T>(List<T> results, String next) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Account(String id, String type, String name, BigDecimal balance, String currencyCode) {}
+    record Account(String id, String type, String name, BigDecimal balance, String currencyCode, String number) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Transaction(

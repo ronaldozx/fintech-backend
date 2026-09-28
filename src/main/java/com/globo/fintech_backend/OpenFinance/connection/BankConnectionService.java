@@ -5,13 +5,17 @@ import com.globo.fintech_backend.Auth.repository.UserRepository;
 import com.globo.fintech_backend.OpenFinance.connection.dto.BankConnectionDTO;
 import com.globo.fintech_backend.OpenFinance.connection.dto.ConnectTokenDTO;
 import com.globo.fintech_backend.OpenFinance.provider.OpenFinanceProvider;
+import com.globo.fintech_backend.OpenFinance.provider.ProviderAccount;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderItem;
 import com.globo.fintech_backend.exception.BadRequestException;
 import com.globo.fintech_backend.exception.ConflictException;
 import com.globo.fintech_backend.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class BankConnectionService {
@@ -50,6 +54,8 @@ public class BankConnectionService {
             throw new ResourceNotFoundException("Conexão não encontrada");
         }
 
+        requireNoSharedAccounts(userId, itemId);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -74,6 +80,27 @@ public class BankConnectionService {
 
         provider.deleteItem(connection.getItemId());
         repository.delete(connection);
+    }
+
+    private void requireNoSharedAccounts(Long userId, String itemId) {
+        Set<String> incoming = accountKeys(provider.listAccounts(itemId));
+        if (incoming.isEmpty()) {
+            return;
+        }
+
+        for (BankConnection other : repository.findByUserIdOrderByCreatedAtDesc(userId)) {
+            if (!Collections.disjoint(incoming, accountKeys(provider.listAccounts(other.getItemId())))) {
+                throw new ConflictException("Essa conta já está conectada. Escolha outra conta no Meu Pluggy "
+                        + "ou desconecte a conexão atual antes, senão as transações entram em dobro.");
+            }
+        }
+    }
+
+    private static Set<String> accountKeys(List<ProviderAccount> accounts) {
+        return accounts.stream()
+                .filter(account -> account.number() != null && !account.number().isBlank())
+                .map(account -> account.type() + ":" + account.number().trim())
+                .collect(Collectors.toSet());
     }
 
     private BankConnectionDTO toDTO(BankConnection connection) {

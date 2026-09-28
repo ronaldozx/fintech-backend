@@ -32,6 +32,7 @@ public class TransactionSyncService {
     private final TransactionRepository transactionRepository;
     private final OpenFinanceProvider provider;
     private final CategoryClassifier classifier;
+    private final CategoryTranslator translator;
     private final Clock clock;
     private final ConcurrentHashMap<Long, Object> userLocks = new ConcurrentHashMap<>();
 
@@ -39,19 +40,22 @@ public class TransactionSyncService {
     public TransactionSyncService(BankConnectionRepository connectionRepository,
                                   TransactionRepository transactionRepository,
                                   OpenFinanceProvider provider,
-                                  CategoryClassifier classifier) {
-        this(connectionRepository, transactionRepository, provider, classifier, Clock.systemDefaultZone());
+                                  CategoryClassifier classifier,
+                                  CategoryTranslator translator) {
+        this(connectionRepository, transactionRepository, provider, classifier, translator, Clock.systemDefaultZone());
     }
 
     TransactionSyncService(BankConnectionRepository connectionRepository,
                            TransactionRepository transactionRepository,
                            OpenFinanceProvider provider,
                            CategoryClassifier classifier,
+                           CategoryTranslator translator,
                            Clock clock) {
         this.connectionRepository = connectionRepository;
         this.transactionRepository = transactionRepository;
         this.provider = provider;
         this.classifier = classifier;
+        this.translator = translator;
         this.clock = clock;
     }
 
@@ -131,12 +135,13 @@ public class TransactionSyncService {
         transaction.setDate(source.date());
         transaction.setPaymentMethod(account.type() == ProviderAccountType.CREDIT ? PaymentMethod.CREDIT : PaymentMethod.DEBIT);
         transaction.setCategory(resolveCategory(source));
+        transaction.setNeutral(translator.isNeutral(source.category()));
         return transaction;
     }
 
     private String resolveCategory(ProviderTransaction source) {
         if (source.category() != null && !source.category().isBlank()) {
-            return source.category();
+            return translator.translate(source.category());
         }
         return classifier.classify(source.description());
     }

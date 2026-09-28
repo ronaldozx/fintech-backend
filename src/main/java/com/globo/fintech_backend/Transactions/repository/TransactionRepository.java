@@ -10,7 +10,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -18,11 +17,13 @@ import java.util.Set;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
     Page<TransactionDTO> findByUserIdAndDateBetween(Long userId, LocalDate startDate, LocalDate endDate, Pageable pageable);
+
     @Query("SELECT " +
             "SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END) as totalIncome, " +
             "SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END) as totalExpense " +
             "FROM Transaction t " +
-            "WHERE t.user.id = :userId AND t.date BETWEEN :startDate AND :endDate")
+            "WHERE t.user.id = :userId AND t.date BETWEEN :startDate AND :endDate " +
+            "AND (t.neutral IS NULL OR t.neutral = false)")
     TransactionSummary getSummary(
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
@@ -34,6 +35,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "COUNT(t) AS transactionCount " +
             "FROM Transaction t " +
             "WHERE t.user.id = :userId AND t.type = 'EXPENSE' AND t.date BETWEEN :startDate AND :endDate " +
+            "AND (t.neutral IS NULL OR t.neutral = false) " +
             "GROUP BY COALESCE(t.category, 'Outros') " +
             "ORDER BY SUM(t.amount) ASC")
     List<CategoryTotal> getExpensesByCategory(
@@ -47,9 +49,24 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END) AS expense " +
             "FROM Transaction t " +
             "WHERE t.user.id = :userId AND t.date BETWEEN :startDate AND :endDate " +
+            "AND (t.neutral IS NULL OR t.neutral = false) " +
             "GROUP BY YEAR(t.date), MONTH(t.date) " +
             "ORDER BY YEAR(t.date) ASC, MONTH(t.date) ASC")
     List<MonthTotal> getMonthlyTotals(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT t.date AS periodDate, " +
+            "SUM(CASE WHEN t.type = 'INCOME' THEN t.amount ELSE 0 END) AS income, " +
+            "SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END) AS expense " +
+            "FROM Transaction t " +
+            "WHERE t.user.id = :userId AND t.date BETWEEN :startDate AND :endDate " +
+            "AND (t.neutral IS NULL OR t.neutral = false) " +
+            "GROUP BY t.date " +
+            "ORDER BY t.date ASC")
+    List<DayTotal> getDailyTotals(
             @Param("userId") Long userId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
