@@ -26,6 +26,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             "GROUP BY t.category ORDER BY t.category")
     List<String> findDistinctCategories(@Param("userId") Long userId);
 
+    @Query("SELECT COALESCE(t.category, 'Outros') FROM Transaction t " +
+            "WHERE t.user.id = :userId AND t.type = 'EXPENSE' AND (t.neutral IS NULL OR t.neutral = false) " +
+            "GROUP BY COALESCE(t.category, 'Outros') ORDER BY COALESCE(t.category, 'Outros')")
+    List<String> findExpenseCategories(@Param("userId") Long userId);
+
     boolean existsByUserIdAndCategoryIsNull(Long userId);
 
     @Query("SELECT " +
