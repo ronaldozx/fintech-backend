@@ -10,6 +10,8 @@ import com.globo.fintech_backend.OpenFinance.provider.ProviderTransaction;
 import com.globo.fintech_backend.OpenFinance.provider.ProviderTransactionType;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.Account;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.AuthRequest;
+import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.BankData;
+import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.CreditData;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.AuthResponse;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenOptions;
 import com.globo.fintech_backend.OpenFinance.provider.pluggy.PluggyResponses.ConnectTokenRequest;
@@ -241,14 +243,35 @@ public class PluggyClient implements OpenFinanceProvider {
     }
 
     private ProviderAccount toProviderAccount(Account account) {
+        BankData bank = account.bankData();
+        CreditData credit = account.creditData();
+
         return new ProviderAccount(
                 account.id(),
                 ProviderAccountType.valueOf(account.type()),
                 account.name(),
                 account.balance(),
                 account.currencyCode(),
-                account.number()
+                account.number(),
+                account.marketingName(),
+                credit == null ? null : credit.creditLimit(),
+                credit == null ? null : credit.availableCreditLimit(),
+                credit == null ? null : parseOptionalDate(credit.balanceDueDate()),
+                credit == null ? null : credit.brand(),
+                bank == null ? null : bank.overdraftContractedLimit(),
+                bank == null ? null : bank.overdraftUsedLimit()
         );
+    }
+
+    private LocalDate parseOptionalDate(String date) {
+        if (date == null || date.length() < 10) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(date.substring(0, 10));
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     private ProviderTransaction toProviderTransaction(Transaction transaction) {

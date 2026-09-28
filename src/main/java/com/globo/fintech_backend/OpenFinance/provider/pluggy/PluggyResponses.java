@@ -34,7 +34,23 @@ final class PluggyResponses {
     record CursorPage<T>(List<T> results, String next) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Account(String id, String type, String name, BigDecimal balance, String currencyCode, String number) {}
+    record BankData(BigDecimal overdraftContractedLimit, BigDecimal overdraftUsedLimit) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record CreditData(BigDecimal creditLimit, BigDecimal availableCreditLimit, String balanceDueDate, String brand) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Account(
+            String id,
+            String type,
+            String name,
+            BigDecimal balance,
+            String currencyCode,
+            String number,
+            String marketingName,
+            BankData bankData,
+            CreditData creditData
+    ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Transaction(

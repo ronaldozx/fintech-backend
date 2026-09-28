@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.globo.fintech_backend.Transactions.enums.PaymentMethod;
+
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
@@ -75,6 +78,17 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             "ORDER BY t.date ASC")
     List<DayTotal> getDailyTotals(
             @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t " +
+            "WHERE t.user.id = :userId AND t.type = 'EXPENSE' AND t.paymentMethod = :method " +
+            "AND t.date BETWEEN :startDate AND :endDate " +
+            "AND (t.neutral IS NULL OR t.neutral = false)")
+    BigDecimal sumExpensesByPaymentMethod(
+            @Param("userId") Long userId,
+            @Param("method") PaymentMethod method,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
