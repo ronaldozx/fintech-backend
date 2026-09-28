@@ -31,6 +31,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>,
             "GROUP BY COALESCE(t.category, 'Outros') ORDER BY COALESCE(t.category, 'Outros')")
     List<String> findExpenseCategories(@Param("userId") Long userId);
 
+    @Query("SELECT t FROM Transaction t " +
+            "WHERE t.user.id = :userId AND t.type = 'EXPENSE' AND (t.neutral IS NULL OR t.neutral = false) " +
+            "AND t.date BETWEEN :startDate AND :endDate ORDER BY t.date ASC, t.id ASC")
+    List<Transaction> findCountedExpensesBetween(
+            @Param("userId") Long userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
     boolean existsByUserIdAndCategoryIsNull(Long userId);
 
     @Query("SELECT " +
